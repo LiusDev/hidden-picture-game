@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
+import { gameData } from "@/utils/question"
 import { useViewportSize } from "@/hooks/use-viewport-size"
 import Confetti from "react-confetti"
-import { gameData } from "@/utils/question"
 
 export default function HiddenPictureGame() {
 	const [revealedPieces, setRevealedPieces] = useState<number[]>([])
@@ -27,7 +27,6 @@ export default function HiddenPictureGame() {
 	>(null)
 	const [gameComplete, setGameComplete] = useState(false)
 	const [incorrectAnswer, setIncorrectAnswer] = useState(false)
-	const [showConfetti, setShowConfetti] = useState(false)
 	const { width, height } = useViewportSize()
 
 	const handleQuestionSelect = (questionId: number) => {
@@ -62,13 +61,29 @@ export default function HiddenPictureGame() {
 	}
 
 	const handleTopicGuess = () => {
-		const normalizedGuess = topicGuess.toLowerCase().trim()
-		const normalizedTopic = gameData.topic.toLowerCase().trim()
+		// Normalize the user input
+		const normalizeString = (str: string) => {
+			// Convert to lowercase and trim
+			const normalized = str.toLowerCase().trim()
+			// Remove diacritics (accents)
+			return normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+		}
 
-		if (normalizedGuess === normalizedTopic) {
+		const normalizedGuess = normalizeString(topicGuess)
+
+		// Handle topic as an array
+		const topics = Array.isArray(gameData.topic)
+			? gameData.topic
+			: [gameData.topic]
+
+		// Check if the guess matches any of the acceptable answers
+		const isCorrect = topics.some(
+			(topic) => normalizeString(topic) === normalizedGuess
+		)
+
+		if (isCorrect) {
 			setGuessResult("correct")
 			setGameComplete(true)
-			setShowConfetti(true)
 		} else {
 			setGuessResult("incorrect")
 		}
@@ -83,7 +98,6 @@ export default function HiddenPictureGame() {
 		setGuessResult(null)
 		setGameComplete(false)
 		setIncorrectAnswer(false)
-		setShowConfetti(false)
 	}
 
 	const handleCloseQuestionDialog = () => {
@@ -92,41 +106,38 @@ export default function HiddenPictureGame() {
 		setIncorrectAnswer(false)
 	}
 
+	// Calculate position for a piece in a 4x3 grid
+	const getPiecePosition = (index: number) => {
+		const col = index % 4
+		const row = Math.floor(index / 4)
+		return {
+			backgroundPosition: `${col * 33.33}% ${row * 50}%`,
+		}
+	}
+
 	return (
 		<>
-			{showConfetti && (
-				<Confetti width={width} height={height} className="z-[1000]" />
-			)}
+			{gameComplete && <Confetti width={width} height={height} />}
 			<div className="flex flex-col lg:flex-row gap-8">
 				{/* Left side - Hidden Picture Grid */}
 				<div className="flex-1">
-					<div className="relative aspect-square border border-gray-300 rounded-lg overflow-hidden">
+					<div
+						className="relative border border-gray-300 rounded-lg overflow-hidden"
+						style={{ aspectRatio: "16/9" }}
+					>
 						{/* Full image (revealed at the end) */}
 						{gameComplete && guessResult === "correct" && (
 							<div className="absolute inset-0 z-20 flex items-center justify-center bg-white">
-								<div className="text-center">
-									<img
-										src={
-											gameData.image || "/placeholder.svg"
-										}
-										alt="Complete hidden picture"
-										className="w-full h-auto"
-									/>
-									<h2 className="text-2xl font-bold mt-4 capitalize">
-										Topic: {gameData.topic}
-									</h2>
-									<Button
-										onClick={resetGame}
-										className="my-4"
-									>
-										Play Again
-									</Button>
-								</div>
+								<img
+									src={gameData.image || "/placeholder.svg"}
+									alt="Hình ảnh hoàn chỉnh"
+									className="w-full h-full"
+								/>
 							</div>
 						)}
 
-						{/* Grid of image pieces */}
-						<div className="grid grid-cols-3 grid-rows-4 h-full w-full">
+						{/* Grid of image pieces - 4x3 layout */}
+						<div className="grid grid-cols-4 grid-rows-3 h-full w-full">
 							{Array.from({ length: 12 }).map((_, index) => {
 								const pieceId = index + 1
 								const isRevealed =
@@ -150,13 +161,8 @@ export default function HiddenPictureGame() {
 												className="absolute inset-0 bg-cover bg-center"
 												style={{
 													backgroundImage: `url(${gameData.image})`,
-													backgroundPosition: `${
-														(index % 3) * 50
-													}% ${
-														Math.floor(index / 3) *
-														33.33
-													}%`,
-													backgroundSize: "300% 400%",
+													...getPiecePosition(index),
+													backgroundSize: "400% 300%", // 4 columns, 3 rows
 												}}
 											/>
 										)}
@@ -179,12 +185,15 @@ export default function HiddenPictureGame() {
 							onClick={() => setGuessDialogOpen(true)}
 							variant="outline"
 						>
-							Guess the Topic
+							Đoán Chủ Đề
 						</Button>
 
 						<div className="text-sm">
-							Revealed: {revealedPieces.length} /{" "}
-							{gameData.questions.length}
+							Đã mở:{" "}
+							{gameComplete
+								? gameData.questions.length
+								: revealedPieces.length}{" "}
+							/ {gameData.questions.length}
 						</div>
 					</div>
 				</div>
@@ -192,27 +201,19 @@ export default function HiddenPictureGame() {
 				{/* Right side - Game Instructions */}
 				<div className="flex-1">
 					<div className="p-6 border rounded-lg">
-						<h2 className="text-xl font-bold mb-4">How to Play</h2>
+						<h2 className="text-xl font-bold mb-4">Cách Chơi</h2>
 						<ul className="space-y-2 list-disc pl-5">
+							<li>Nhấp vào ô số bất kỳ để hiển thị câu hỏi</li>
+							<li>Trả lời đúng để mở phần của hình ảnh ẩn</li>
+							<li>Có thể đoán chủ đề bất cứ lúc nào</li>
 							<li>
-								Click on any numbered square to reveal a
-								question
-							</li>
-							<li>
-								Answer correctly to reveal that piece of the
-								hidden image
-							</li>
-							<li>Try to guess the overall topic at any time</li>
-							<li>
-								Reveal all pieces or correctly guess the topic
-								to win
+								Mở tất cả các mảnh hoặc đoán đúng chủ đề để
+								thắng
 							</li>
 						</ul>
 
 						<div className="mt-6">
-							<h3 className="font-semibold mb-2">
-								Game Progress
-							</h3>
+							<h3 className="font-semibold mb-2">Tiến Trình</h3>
 							<div className="grid grid-cols-4 gap-2">
 								{Array.from({ length: 12 }).map((_, index) => {
 									const pieceId = index + 1
@@ -241,16 +242,16 @@ export default function HiddenPictureGame() {
 						{gameComplete && (
 							<div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
 								<h3 className="font-semibold">
-									All pieces revealed!
+									Đã mở tất cả các mảnh!
 								</h3>
-								<p>Can you guess the topic now?</p>
+								<p>Bạn có thể đoán chủ đề bây giờ?</p>
 								<Button
 									onClick={() => setGuessDialogOpen(true)}
 									className="mt-2"
 									variant="outline"
 									size="sm"
 								>
-									Make Your Guess
+									Đoán Ngay
 								</Button>
 							</div>
 						)}
@@ -268,9 +269,7 @@ export default function HiddenPictureGame() {
 						}`}
 					>
 						<DialogHeader>
-							<DialogTitle>
-								Question {currentQuestion}
-							</DialogTitle>
+							<DialogTitle>Câu Hỏi {currentQuestion}</DialogTitle>
 						</DialogHeader>
 
 						{currentQuestion && (
@@ -303,7 +302,7 @@ export default function HiddenPictureGame() {
 									<div className="mt-4 p-3 bg-red-100 rounded-md flex items-center">
 										<AlertCircle className="h-5 w-5 text-red-600 mr-2" />
 										<span>
-											Incorrect answer. Try again!
+											Câu trả lời không đúng. Hãy thử lại!
 										</span>
 									</div>
 								)}
@@ -315,7 +314,7 @@ export default function HiddenPictureGame() {
 								variant="outline"
 								onClick={handleCloseQuestionDialog}
 							>
-								Close
+								Đóng
 							</Button>
 						</DialogFooter>
 					</DialogContent>
@@ -328,14 +327,12 @@ export default function HiddenPictureGame() {
 				>
 					<DialogContent>
 						<DialogHeader>
-							<DialogTitle>
-								Guess the Hidden Picture Topic
-							</DialogTitle>
+							<DialogTitle>Đoán Chủ Đề Hình Ảnh Ẩn</DialogTitle>
 						</DialogHeader>
 
 						<div className="py-4">
 							<Input
-								placeholder="Enter your guess..."
+								placeholder="Nhập đoán của bạn..."
 								value={topicGuess}
 								onChange={(e) => setTopicGuess(e.target.value)}
 							/>
@@ -351,17 +348,14 @@ export default function HiddenPictureGame() {
 									{guessResult === "correct" ? (
 										<>
 											<CheckCircle2 className="h-5 w-5 text-green-600 mr-2" />
-											<span>
-												Correct! The topic is "
-												{gameData.topic}".
-											</span>
+											<span>Chính xác!</span>
 										</>
 									) : (
 										<>
 											<AlertCircle className="h-5 w-5 text-red-600 mr-2" />
 											<span>
-												Incorrect. Try again or continue
-												revealing pieces.
+												Không đúng. Hãy thử lại hoặc
+												tiếp tục mở các mảnh.
 											</span>
 										</>
 									)}
@@ -374,14 +368,12 @@ export default function HiddenPictureGame() {
 								variant="outline"
 								onClick={() => setGuessDialogOpen(false)}
 							>
-								Cancel
+								Hủy
 							</Button>
-							<Button onClick={handleTopicGuess}>
-								Submit Guess
-							</Button>
+							<Button onClick={handleTopicGuess}>Gửi Đoán</Button>
 							{guessResult === "correct" && (
 								<Button onClick={resetGame} variant="outline">
-									Play Again
+									Chơi Lại
 								</Button>
 							)}
 						</DialogFooter>
