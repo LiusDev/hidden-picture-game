@@ -1,6 +1,6 @@
 export const gameData = {
-	topic: ["Latouche Tréville"],
-	image: "topic.jpg",
+	topic: ["Sửa đổi lối làm việc"],
+	image: "topic.png",
 	questions: [
 		{
 			id: 1,
