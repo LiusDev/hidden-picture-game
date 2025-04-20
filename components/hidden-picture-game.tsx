@@ -44,11 +44,16 @@ export default function HiddenPictureGame() {
 		)
 
 		if (question && answer === question.correctAnswer) {
-			setRevealedPieces((prev) => [...prev, currentQuestion!])
+			const newRevealedPieces = [...revealedPieces, currentQuestion!]
+			setRevealedPieces(newRevealedPieces)
 			setQuestionDialogOpen(false)
 			setCurrentQuestion(null)
 
-			if (revealedPieces.length + 1 === gameData.questions.length) {
+			// If all pieces revealed and topic guessed correctly, show complete image
+			if (
+				newRevealedPieces.length === gameData.questions.length &&
+				guessResult === "correct"
+			) {
 				setGameComplete(true)
 			}
 		} else {
@@ -65,12 +70,18 @@ export default function HiddenPictureGame() {
 		if (normalizedGuess === normalizedTopic) {
 			setGuessResult("correct")
 			setShowConfetti(true)
+			// Auto close the guess dialog when topic is correct
+			setGuessDialogOpen(false)
+
+			// Check if all pieces are revealed to show complete image
+			if (revealedPieces.length === gameData.questions.length) {
+				setGameComplete(true)
+			}
+
 			// Set a timeout to hide confetti after 10 seconds
 			setTimeout(() => {
 				setShowConfetti(false)
 			}, 10000)
-			// Remove this line to prevent ending the game on correct guess
-			// setGameComplete(true)
 		} else {
 			setGuessResult("incorrect")
 		}
@@ -126,12 +137,6 @@ export default function HiddenPictureGame() {
 									<h2 className="text-2xl font-bold mt-4 capitalize">
 										Chủ đề: {gameData.topic}
 									</h2>
-									<Button
-										onClick={resetGame}
-										className="my-4"
-									>
-										Chơi Lại
-									</Button>
 								</div>
 							</div>
 						)}
@@ -157,7 +162,7 @@ export default function HiddenPictureGame() {
 									>
 										{isRevealed && (
 											<div
-												className="absolute inset-0 bg-cover bg-center"
+												className="absolute inset-0 bg-cover bg-center blur-sm"
 												style={{
 													backgroundImage: `url(${gameData.image})`,
 													backgroundPosition: `${
