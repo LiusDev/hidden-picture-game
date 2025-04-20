@@ -58,7 +58,7 @@ export default function HiddenPictureGame() {
 
   const handleTopicGuess = () => {
     const normalizedGuess = topicGuess.toLowerCase().trim();
-    const normalizedTopic = gameData.topic.toLowerCase().trim();
+    const normalizedTopic = gameData.topic.join(" ").toLowerCase().trim();
 
     if (normalizedGuess === normalizedTopic) {
       setGuessResult("correct");
